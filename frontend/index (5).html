@@ -1,0 +1,180 @@
+<!DOCTYPE html><html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>StarSon POS</title>
+  <link rel="stylesheet" href="css/starson.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
+</head>
+<body>
+  <div id="admin-panel">
+    <h2>Admin Login</h2>
+    <input type="text" id="admin-user" placeholder="Username" />
+    <input type="password" id="admin-pass" placeholder="Password" />
+    <button onclick="adminLogin()">Login</button>
+  </div>  
+
+  <div id="main-app" style="display: none;">
+    <div id="google_translate_element"></div>
+    <h1>StarSon POS Admin Dashboard</h1>
+
+    <nav>
+      <button onclick="showTab('dashboard')">Dashboard</button>
+      <button onclick="showTab('users')">Users</button>
+      <button onclick="showTab('inventory')">Inventory</button>
+      <button onclick="showTab('reports')">Reports</button>
+      <button onclick="showTab('settings')">Settings</button>
+      <button onclick="showTab('audit')">Audit Logs</button>
+      <button onclick="showTab('receipt')">Receipt</button>
+    </nav>
+
+    <section id="dashboard" class="tab-content">
+      <h2>Welcome, Admin!</h2>
+      <p>Total Receipts: 1450</p>
+      <p>Trees Saved: <span id="total-trees">0.17</span></p>
+    </section>
+
+    <section id="users" class="tab-content" style="display:none;">
+      <h2>User Management</h2>
+      <input type="text" id="new-username" placeholder="Username" />
+      <input type="text" id="new-role" placeholder="Role (e.g. cashier)" />
+      <button onclick="addUser()">Add User</button>
+      <ul id="user-list"></ul>
+    </section>
+
+    <section id="inventory" class="tab-content" style="display:none;">
+      <h2>Inventory</h2>
+      <input type="text" id="item-name" placeholder="Item Name" />
+      <input type="number" id="item-qty" placeholder="Quantity" />
+      <input type="number" id="item-price" placeholder="Price" />
+      <button onclick="addInventoryItem()">Add Item</button>
+      <ul id="inventory-list"></ul>
+    </section>
+
+    <section id="reports" class="tab-content" style="display:none;">
+      <h2>Reports</h2>
+      <p><b>Eco Summary:</b></p>
+      <p>Trees Saved: <span id="report-trees">0.17</span></p>
+      <p>Carbon Avoided: 3.75 kg CO₂</p>
+      <button onclick="exportInventory()">Export Inventory</button>
+    </section>
+
+    <section id="settings" class="tab-content" style="display:none;">
+      <h2>Settings</h2>
+      <label>Currency:</label>
+      <select id="currency">
+        <option value="KES">KES</option>
+        <option value="USD">USD</option>
+      </select>
+    </section>
+
+    <section id="audit" class="tab-content" style="display:none;">
+      <h2>Audit Logs</h2>
+      <ul id="audit-log"></ul>
+    </section>
+
+    <section id="receipt" class="tab-content" style="display:none;">
+      <h2>Generate & Send Receipt</h2>
+      <div id="receipt-summary">
+        <p><b>Items:</b> Soda x2, Milk x1</p>
+        <p><b>Total:</b> KES 350</p>
+      </div>
+      <button onclick="downloadPDF()">Download PDF</button>
+      <br><br>
+      <input type="email" id="email" placeholder="Enter customer email" />
+      <button onclick="sendEmail()">Send via Email</button>
+      <br><br>
+      <input type="tel" id="sms" placeholder="Enter phone number" />
+      <button onclick="sendSMS()">Send via SMS</button>
+    </section>
+  </div>
+
+  <script>
+    const adminCredentials = { username: "admin", password: "StarSon2025" };
+    const users = [];
+    const inventory = [];
+    const audit = [];
+
+    function adminLogin() {
+      const user = document.getElementById("admin-user").value;
+      const pass = document.getElementById("admin-pass").value;
+      if (user === adminCredentials.username && pass === adminCredentials.password) {
+        document.getElementById("admin-panel").style.display = "none";
+        document.getElementById("main-app").style.display = "block";
+        logAction("Admin logged in");
+      } else {
+        alert("Invalid admin credentials");
+      }
+    }
+
+    function showTab(tabId) {
+      document.querySelectorAll(".tab-content").forEach(tab => tab.style.display = "none");
+      document.getElementById(tabId).style.display = "block";
+    }
+
+    function addUser() {
+      const username = document.getElementById("new-username").value;
+      const role = document.getElementById("new-role").value;
+      users.push({ username, role });
+      document.getElementById("user-list").innerHTML += `<li>${username} (${role})</li>`;
+      logAction(`User added: ${username} (${role})`);
+    }
+
+    function addInventoryItem() {
+      const name = document.getElementById("item-name").value;
+      const qty = document.getElementById("item-qty").value;
+      const price = document.getElementById("item-price").value;
+      inventory.push({ name, qty, price });
+      document.getElementById("inventory-list").innerHTML += `<li>${name} - ${qty} pcs @ ${price} KES</li>`;
+      logAction(`Inventory item added: ${name}`);
+    }
+
+    function exportInventory() {
+      const data = ["Product,Qty,Price", ...inventory.map(i => `${i.name},${i.qty},${i.price}`)];
+      const blob = new Blob([data.join("\n")], { type: "text/csv" });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "inventory.csv";
+      a.click();
+      logAction("Exported inventory report");
+    }
+
+    function logAction(action) {
+      const time = new Date().toLocaleString();
+      const entry = `${time} - ${action}`;
+      audit.push(entry);
+      document.getElementById("audit-log").innerHTML += `<li>${entry}</li>`;
+    }
+
+    function downloadPDF() {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+      const receiptText = document.getElementById("receipt-summary").innerText;
+      doc.text("StarSon POS - Receipt", 10, 10);
+      doc.text(receiptText, 10, 20);
+      doc.save("StarSon_Receipt.pdf");
+      logAction("Receipt PDF downloaded");
+    }
+
+    function sendEmail() {
+      const email = document.getElementById("email").value;
+      if (!email) return alert("Please enter an email.");
+      alert("Simulated: PDF sent to " + email);
+      logAction("Sent receipt to email: " + email);
+    }
+
+    function sendSMS() {
+      const phone = document.getElementById("sms").value;
+      if (!phone) return alert("Please enter a phone number.");
+      alert("Simulated: SMS sent to " + phone + " with download link.");
+      logAction("Sent receipt link via SMS to: " + phone);
+    }
+
+    function googleTranslateElementInit() {
+      new google.translate.TranslateElement({ pageLanguage: 'en' }, 'google_translate_element');
+    }
+  </script>
+</body>
+</html>
