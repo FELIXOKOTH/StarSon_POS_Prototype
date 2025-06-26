@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>StarSon POS - Role-Based Dashboard</title>
+  <link rel="stylesheet" href="css/starson.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+</head>
+<body>
+  <h1>StarSon POS Login</h1>
+  <label>Select Role:</label>
+  <select id="role">
+    <option value="admin">Admin</option>
+    <option value="technician">Technician</option>
+    <option value="cashier">Cashier</option>
+  </select><br/>
+  <input type="text" id="username" placeholder="Username" />
+  <input type="password" id="password" placeholder="Password" />
+  <button onclick="login()">Login</button>
+
+  <div id="admin-panel" class="tab-content" style="display:none;">
+    <h2>Admin Dashboard</h2>
+    <button onclick="showAdminTab('currency')">Currency Settings</button>
+    <button onclick="showAdminTab('report')">Eco Reports</button>
+    <div id="admin-currency" style="display:none;">
+      <label>Select Currency:</label>
+      <select id="currency">
+        <option value="KES">KES</option>
+        <option value="USD">USD</option>
+        <option value="EUR">EUR</option>
+        <option value="NGN">NGN</option>
+      </select>
+    </div>
+    <div id="admin-report" style="display:none;">
+      <p>Trees Saved: 0.215</p>
+      <p>CO₂ Avoided: 5.4 kg</p>
+    </div>
+  </div>
+
+  <div id="technician-panel" class="tab-content" style="display:none;">
+    <h2>Technician Dashboard</h2>
+    <p>Modules installed successfully.</p>
+    <button onclick="alert('Diagnostics complete.')">Run Diagnostics</button>
+  </div>
+
+  <div id="cashier-panel" class="tab-content" style="display:none;">
+    <h2>Cashier Dashboard - New Sale</h2>
+    <label>Items:</label>
+    <select id="item">
+      <option value="Soda,50">Soda - 50</option>
+      <option value="Milk,60">Milk - 60</option>
+      <option value="Bread,80">Bread - 80</option>
+      <option value="Sugar,150">Sugar - 150</option>
+    </select><br/>
+    <label>Quantity:</label>
+    <input type="number" id="qty" value="1" /><br/>
+    <button onclick="addItem()">Add Item</button>
+    <ul id="item-list"></ul>
+    <p>VAT (16%): <span id="vat">0</span></p>
+    <p>Total: <span id="total">0</span></p>
+
+    <h3>Split Payment</h3>
+    <label>M-Pesa:</label><input type="number" id="mpesa" /><br/>
+    <label>Cash:</label><input type="number" id="cash" /><br/>
+    <label>Card:</label><input type="number" id="card" /><br/>
+    <button onclick="finalizePayment()">Confirm Payment</button>
+  </div>
+
+  <script>
+    const credentials = {
+      admin: { username: "admin", password: "StarSon2025" },
+      technician: { username: "tech123", password: "TechPass" },
+      cashier: { username: "cash001", password: "CashPass" }
+    };
+
+    function login() {
+      const role = document.getElementById("role").value;
+      const user = document.getElementById("username").value;
+      const pass = document.getElementById("password").value;
+      if (user === credentials[role].username && pass === credentials[role].password) {
+        document.querySelectorAll(".tab-content").forEach(tab => tab.style.display = "none");
+        document.getElementById(role + "-panel").style.display = "block";
+      } else {
+        alert("Invalid credentials for " + role);
+      }
+    }
+
+    function showAdminTab(tab) {
+      document.getElementById("admin-currency").style.display = "none";
+      document.getElementById("admin-report").style.display = "none";
+      document.getElementById("admin-" + tab).style.display = "block";
+    }
+
+    let items = [];
+    function addItem() {
+      const [name, price] = document.getElementById("item").value.split(",");
+      const qty = parseInt(document.getElementById("qty").value);
+      const subtotal = qty * parseInt(price);
+      items.push({ name, qty, subtotal });
+      document.getElementById("item-list").innerHTML += `<li>${qty} x ${name} = ${subtotal}</li>`;
+      updateTotal();
+    }
+
+    function updateTotal() {
+      let total = items.reduce((acc, cur) => acc + cur.subtotal, 0);
+      const vat = total * 0.16;
+      document.getElementById("vat").innerText = vat.toFixed(2);
+      document.getElementById("total").innerText = (total + vat).toFixed(2);
+    }
+
+    function finalizePayment() {
+      const mpesa = parseFloat(document.getElementById("mpesa").value) || 0;
+      const cash = parseFloat(document.getElementById("cash").value) || 0;
+      const card = parseFloat(document.getElementById("card").value) || 0;
+      const total = parseFloat(document.getElementById("total").innerText);
+      const paid = mpesa + cash + card;
+      if (paid >= total) {
+        alert("Payment accepted.\nReceipt generated.");
+      } else {
+        alert("Insufficient payment.");
+      }
+    }
+  </script>
+</body>
+</html>

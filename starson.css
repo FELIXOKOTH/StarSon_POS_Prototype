@@ -1,0 +1,6 @@
+
+body { font-family: Arial, sans-serif; background: #f4f4f4; padding: 20px; }
+h1, h2 { color: #333; }
+nav button { margin: 5px; padding: 8px 12px; }
+input, select { margin: 5px; padding: 6px; }
+.tab-content { margin-top: 20px; }
