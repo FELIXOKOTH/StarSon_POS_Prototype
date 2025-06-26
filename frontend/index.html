@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>StarSon POS - Role-Based</title>
+  <link rel="stylesheet" href="css/starson.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+   <script src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
+</head>
+<body>
+  <h1>StarSon POS Login</h1>
+  <label>Role:</label>
+  <select id="role">
+    <option value="admin">Admin</option>
+    <option value="technician">Technician</option>
+    <option value="cashier">Cashier</option>
+  </select><br/>
+  <input type="text" id="username" placeholder="Username" />
+  <input type="password" id="password" placeholder="Password" />
+  <button onclick="login()">Login</button>
+
+  <!-- Admin Dashboard -->
+  <div id="admin-panel" class="tab-content">
+    <h2>Admin Dashboard</h2>
+    <nav>
+      <button onclick="showTab('dashboard')">Dashboard</button>
+      <button onclick="showTab('users')">Users</button>
+      <button onclick="showTab('inventory')">Inventory</button>
+      <button onclick="showTab('reports')">Reports</button>
+      <button onclick="showTab('settings')">Settings</button>
+      <button onclick="showTab('audit')">Audit Logs</button>
+      <button onclick="showTab('receipt')">Receipt Manager</button>
+    </nav>
+     <div id="dashboard" class="tab-content">
+      <h2>Welcome, Admin!</h2>
+      <p>Total Receipts: 1450</p>
+      <p>Trees Saved: <span id="total-trees">0.17</span></p>
+    </div>
+    <div id="users" class="admin-tab" style="display:none;">
+      <h3>Users</h3>
+      <input type="text" placeholder="Username" />
+      <input type="text" placeholder="Role" />
+      <button>Add User</button>
+    </div>
+    <div id="inventory" class="admin-tab" style="display:none;">
+      <h3>Inventory</h3>
+      <input type="text" placeholder="Item Name" />
+      <input type="number" placeholder="Quantity" />
+      <input type="number" placeholder="Price" />
+      <button>Add Item</button>
+    </div>
+    <div id="reports" class="admin-tab" style="display:none;">
+      <h3>Reports</h3>
+      <p>Trees Saved: 0.23</p>
+      <p>Carbon Avoided: 4.7 kg</p>
+    </div>
+    <div id="audit" class="admin-tab" style="display:none;">
+      <h3>Audit Logs</h3>
+      <ul id="audit-log"></ul>
+    </div>
+    <div id="receipt" class="admin-tab" style="display:none;">
+      <h3>Receipt Manager</h3>
+      <p>Track, export or resend receipts.</p>
+    </div>
+  </div>
+
+  <!-- Technician -->
+  <div id="technician-panel" class="tab-content">
+    <h2>Technician Tools</h2>
+    <button onclick="alert('Running diagnostics...')">Run Diagnostics</button>
+  </div>
+
+  <!-- Cashier -->
+  <div id="cashier-panel" class="tab-content">
+    <h2>Cashier - New Sale</h2>
+    <label>Item:</label>
+    <select id="item">
+      <option value="Soda,50">Soda - 50</option>
+      <option value="Milk,60">Milk - 60</option>
+      <option value="Bread,80">Bread - 80</option>
+    </select>
+    <input type="number" id="qty" value="1" />
+    <button onclick="addItem()">Add Item</button>
+    <ul id="item-list"></ul>
+    <p>VAT (16%): <span id="vat">0</span></p>
+    <p>Total: <span id="total">0</span></p>
+
+    <h3>Split Payment</h3>
+    M-Pesa: <input type="number" id="mpesa" />
+    Cash: <input type="number" id="cash" />
+    Card: <input type="number" id="card" />
+    <button onclick="finalizePayment()">Close Sale</button>
+
+    <h3>Send Receipt</h3>
+    Email: <input type="email" id="email" />
+    <button onclick="sendEmail()">Send Email</button><br/>
+    SMS: <input type="tel" id="sms" />
+    <button onclick="sendSMS()">Send SMS</button><br/>
+    <button onclick="generatePDF()">Download PDF</button>
+  </div>
+
+  <script>
+    const creds = {
+      admin: { username: "admin", password: "StarSon2025" },
+      technician: { username: "tech123", password: "TechPass" },
+      cashier: { username: "cash001", password: "CashPass" }
+    };
+
+    function login() {
+      const role = document.getElementById("role").value;
+      const user = document.getElementById("username").value;
+      const pass = document.getElementById("password").value;
+      if (user === creds[role].username && pass === creds[role].password) {
+        document.querySelectorAll(".tab-content").forEach(d => d.style.display = "none");
+        document.getElementById(role + "-panel").style.display = "block";
+      } else {
+        alert("Invalid credentials");
+      }
+    }
+
+    function showTab(tab) {
+      document.querySelectorAll(".admin-tab").forEach(t => t.style.display = "none");
+      document.getElementById(tab).style.display = "block";
+    }
+
+    let items = [];
+    function addItem() {
+      const [name, price] = document.getElementById("item").value.split(",");
+      const qty = parseInt(document.getElementById("qty").value);
+      const subtotal = qty * parseInt(price);
+      items.push({ name, qty, subtotal });
+      document.getElementById("item-list").innerHTML += `<li>${qty} x ${name} = ${subtotal}</li>`;
+      updateTotals();
+    }
+
+    function updateTotals() {
+      let total = items.reduce((a, b) => a + b.subtotal, 0);
+      const vat = total * 0.16;
+      document.getElementById("vat").innerText = vat.toFixed(2);
+      document.getElementById("total").innerText = (total + vat).toFixed(2);
+    }
+
+    function finalizePayment() {
+      const total = parseFloat(document.getElementById("total").innerText);
+      const paid = (parseFloat(document.getElementById("mpesa").value) || 0)
+                 + (parseFloat(document.getElementById("cash").value) || 0)
+                 + (parseFloat(document.getElementById("card").value) || 0);
+      if (paid >= total) alert("Sale complete!");
+      else alert("Insufficient amount.");
+    }
+
+    function sendEmail() {
+      const email = document.getElementById("email").value;
+      if (!email) return alert("Enter email");
+      alert("Simulated: PDF sent to " + email);
+    }
+
+    function sendSMS() {
+      const phone = document.getElementById("sms").value;
+      if (!phone) return alert("Enter phone number");
+      alert("Simulated: Receipt link sent to " + phone);
+    }
+
+    function generatePDF() {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+      doc.text("StarSon POS - Receipt", 10, 10);
+      items.forEach((item, i) => {
+        doc.text(`${item.qty} x ${item.name} = ${item.subtotal}`, 10, 20 + i * 10);
+      });
+      doc.text("Total (incl. VAT): " + document.getElementById("total").innerText, 10, 100);
+      doc.save("StarSon_Receipt.pdf");
+    }
+  </script>
+</body>
+</html>
