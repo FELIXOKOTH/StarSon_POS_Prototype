@@ -1,123 +1,147 @@
-from flask import Flask, render_template, request, jsonify, abort
-import csv
-import io
 import os
-import secrets
-from functools import wraps
-from werkzeug.exceptions import BadRequest
+from flask import Flask, render_template, request, jsonify, send_file
+from flask_mail import Mail, Message
+from twilio.rest import Client
+from dotenv import load_dotenv
+import io
+import csv
+import qrcode
+from eco_receipt import generate_pdf_receipt, get_tree_saving_stats
+
+# Load environment variables
+load_dotenv()
 
 app = Flask(__name__)
 
-# === Mock Databases ===
+# Config for Flask-Mail
+app.config['MAIL_SERVER'] = os.getenv('MAIL_SERVER', 'smtp.zoho.com')
+app.config['MAIL_PORT'] = int(os.getenv('MAIL_PORT', 587))
+app.config['MAIL_USE_TLS'] = True
+app.config['MAIL_USERNAME'] = os.getenv('MAIL_USERNAME', 'info@brightarm.co.ke')
+app.config['MAIL_PASSWORD'] = os.getenv('MAIL_PASSWORD')
+app.config['MAIL_DEFAULT_SENDER'] = app.config['MAIL_USERNAME']
+mail = Mail(app)
+
+# Config for Twilio
+TWILIO_ACCOUNT_SID = os.getenv('TWILIO_ACCOUNT_SID')
+TWILIO_AUTH_TOKEN = os.getenv('TWILIO_AUTH_TOKEN')
+TWILIO_PHONE_NUMBER = os.getenv('TWILIO_PHONE_NUMBER')
+twilio_client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
+
+# Admin credentials
+ADMIN_USER = os.getenv('ADMIN_USER', 'admin')
+ADMIN_PASS = os.getenv('ADMIN_PASS', 'StarSon2025')
+
+# Mock DB
 products = [
     {"id": "001", "name": "Milk", "price": 50.0},
     {"id": "002", "name": "Bread", "price": 30.0},
     {"id": "003", "name": "Eggs", "price": 15.0},
     {"id": "004", "name": "Soda", "price": 10.0}
 ]
-
 transactions = []
 transaction_id_counter = 1
-TOKENS = set()
-
-# === Admin Credentials (Prototype Only) ===
-ADMIN_USER = os.environ.get('ADMIN_USER', "admin")
-ADMIN_PASS = os.environ.get('ADMIN_PASS', "StarSon2025")
-
-# === Token Decorator ===
-def require_token(f):
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        token = request.headers.get('Authorization')
-        if not token or token not in TOKENS:
-            return jsonify({'error': 'Unauthorized'}), 401
-        return f(*args, **kwargs)
-    return decorated_function
-
-# === Routes ===
 
 @app.route('/')
 def index():
-    return render_template('index.html')  # Make sure templates/index.html exists
+    return render_template('index.html')
 
 @app.route('/admin_login', methods=['POST'])
 def admin_login():
-    try:
-        data = request.get_json()
-        username = data.get('username')
-        password = data.get('password')
-
-        if username == ADMIN_USER and password == ADMIN_PASS:
-            token = secrets.token_hex(16)
-            TOKENS.add(token)
-            return jsonify({'success': True, 'token': token})
-        else:
-            return jsonify({'success': False, 'message': 'Invalid credentials'}), 401
-    except Exception as e:
-        return jsonify({'error': f'Login failed: {str(e)}'}), 500
+    data = request.get_json()
+    if data.get('username') == ADMIN_USER and data.get('password') == ADMIN_PASS:
+        return jsonify({'success': True})
+    return jsonify({'success': False, 'message': 'Invalid credentials'})
 
 @app.route('/products')
-@require_token
 def get_products():
     return jsonify(products)
 
 @app.route('/generate_receipt', methods=['POST'])
-@require_token
 def generate_receipt():
     global transaction_id_counter
     try:
         data = request.get_json()
-        payment_method = data.get('paymentMethod')
-        cart_items = data.get('items')
+        items = data.get('items', [])
+        payment_method = data.get('paymentMethod', 'Cash')
+        phone = data.get('phone')
+        email = data.get('email')
 
-        if not payment_method or not isinstance(cart_items, list):
-            raise BadRequest("Invalid or missing payment method/items")
-
-        for item in cart_items:
-            if not all(k in item for k in ['id', 'name', 'price', 'qty']):
-                raise BadRequest("Each cart item must have id, name, price, qty")
-
-        total = sum(item['price'] * item['qty'] for item in cart_items)
-
-        new_transaction = {
-            'id': transaction_id_counter,
-            'payment_method': payment_method,
-            'items': cart_items,
-            'total': total
-        }
-        transactions.append(new_transaction)
+        total = sum(item['price'] * item['qty'] for item in items)
+        receipt_id = transaction_id_counter
         transaction_id_counter += 1
 
-        qr_url = f'https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=StarSon_Receipt_{new_transaction["id"]}'
+        # Tree-saving stats
+        stats = get_tree_saving_stats(items)
 
-        return jsonify({
-            'receipt_id': new_transaction['id'],
-            'payment_method': payment_method,
+        # Generate PDF
+        pdf_buffer = generate_pdf_receipt(receipt_id, items, total, stats)
+
+        # Save transaction
+        transactions.append({
+            'id': receipt_id,
+            'items': items,
             'total': total,
-            'items': cart_items,
-            'qr_img': qr_url
+            'method': payment_method
         })
 
-    except BadRequest as br:
-        return jsonify({'error': str(br)}), 400
+        # QR code
+        qr_img_url = f'https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=StarSon_Receipt_{receipt_id}'
+
+        # Send email
+        if email:
+            msg = Message("Your StarSon Receipt", recipients=[email])
+            msg.body = f"Thank you for shopping. Total: {total}. Tree saving: {stats}"
+            msg.attach(f"receipt_{receipt_id}.pdf", "application/pdf", pdf_buffer.getvalue())
+            mail.send(msg)
+
+        # Send SMS
+        if phone:
+            sms_msg = f"StarSon Receipt #{receipt_id}. Total: {total}. Tree saving: {stats}"
+            twilio_client.messages.create(
+                body=sms_msg,
+                from_=TWILIO_PHONE_NUMBER,
+                to=phone
+            )
+
+        return jsonify({
+            'receipt_id': receipt_id,
+            'total': total,
+            'tree_stats': stats,
+            'qr_img': qr_img_url
+        })
+
     except Exception as e:
-        return jsonify({'error': f'Receipt generation failed: {str(e)}'}), 500
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/export_inventory')
-@require_token
 def export_inventory():
-    try:
-        csv_buffer = io.StringIO()
-        writer = csv.writer(csv_buffer)
-        writer.writerow(['Product ID', 'Name', 'Price'])
-        for product in products:
-            writer.writerow([product['id'], product['name'], product['price']])
-        return csv_buffer.getvalue(), 200, {
-            'Content-Type': 'text/csv',
-            'Content-Disposition': 'attachment; filename=inventory.csv'
-        }
-    except Exception as e:
-        return jsonify({'error': f'Export failed: {str(e)}'}), 500
+    buffer = io.StringIO()
+    writer = csv.writer(buffer)
+    writer.writerow(['Product ID', 'Name', 'Price'])
+    for p in products:
+        writer.writerow([p['id'], p['name'], p['price']])
+    return buffer.getvalue(), 200, {
+        'Content-Type': 'text/csv',
+        'Content-Disposition': 'attachment; filename=inventory.csv'
+    }
+
+@app.route('/download_pdf/<int:receipt_id>')
+def download_pdf(receipt_id):
+    transaction = next((t for t in transactions if t['id'] == receipt_id), None)
+    if not transaction:
+        return 'Not found', 404
+
+    stats = get_tree_saving_stats(transaction['items'])
+    pdf_buffer = generate_pdf_receipt(receipt_id, transaction['items'], transaction['total'], stats)
+    return send_file(io.BytesIO(pdf_buffer.getvalue()),
+                     download_name=f"receipt_{receipt_id}.pdf",
+                     as_attachment=True,
+                     mimetype='application/pdf')
+
+if __name__ == '__main__':
+    app.run(debug=True)
+
 
 # === Run App ===
 if __name__ == '__main__':
