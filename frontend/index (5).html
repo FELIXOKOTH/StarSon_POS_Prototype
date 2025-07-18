@@ -1,163 +1,279 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>StarSon POS</title>
-  <link rel="stylesheet" href="css/starson.css" />
+  <meta charset="UTF-8">
+  <title>StarSon POS Demo</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="StarSon POS - Eco-friendly Point of Sale System">
+  <link rel="icon" href="starson-icon.png" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
   <style>
-    body { font-family: sans-serif; margin: 20px; }
-    #product-list, #cart, #receipt-preview { margin-bottom: 20px; }
-    .flex { display: flex; gap: 10px; align-items: center; }
-    .split-group { margin-top: 10px; }
-    .split-group input { width: 100px; }
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #f0fdf4;
+      margin: 0;
+      padding: 20px;
+      color: #333;
+    }
+    .container {
+      max-width: 900px;
+      margin: auto;
+    }
+    h1 {
+      text-align: center;
+      color: #2d6a4f;
+      font-size: 2.5rem;
+    }
+    .product-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 15px;
+    }
+    .product {
+      background: white;
+      padding: 15px;
+      border-radius: 10px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
+    .product button {
+      background: #2d6a4f;
+      color: white;
+      border: none;
+      padding: 8px 12px;
+      margin-top: 10px;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    .cart {
+      margin-top: 40px;
+      background: #ffffff;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
+    .cart-items li {
+      display: flex;
+      justify-content: space-between;
+      border-bottom: 1px solid #ddd;
+      padding: 6px 0;
+    }
+    .total {
+      font-weight: bold;
+      font-size: 1.2rem;
+      text-align: right;
+      margin-top: 10px;
+    }
+    .checkout-btn {
+      margin-top: 15px;
+      background-color: #40916c;
+      color: white;
+      font-size: 1rem;
+      padding: 12px;
+      border: none;
+      border-radius: 8px;
+      width: 100%;
+      cursor: pointer;
+    }
+    input, select {
+      width: 100%;
+      padding: 10px;
+      margin-top: 15px;
+      margin-bottom: 10px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+    }
+    #admin-panel {
+      text-align: center;
+      padding: 50px;
+    }
+    #admin-panel input, #admin-panel button {
+      margin: 10px;
+      padding: 10px;
+      width: 200px;
+    }
   </style>
 </head>
 <body>
-
-  <h1>StarSon POS</h1>
-
-  <div id="product-list"></div>
-
-  <div id="cart"></div>
-
-  <div class="flex">
-    <label for="payment-method">Payment Method:</label>
-    <select id="payment-method" onchange="toggleSplit()">
-      <option value="Cash">Cash</option>
-      <option value="Mpesa">Mpesa</option>
-      <option value="Card">Card</option>
-      <option value="mixed">Mixed</option>
-    </select>
+  <!-- Admin Login -->
+  <div id="admin-panel">
+    <h2>Admin Login</h2>
+    <input type="text" id="admin-user" placeholder="Username" autocomplete="username" required />
+    <input type="password" id="admin-pass" placeholder="Password" autocomplete="current-password" required />
+    <p id="login-error" style="color: red; font-weight: bold;"></p>
+    <button onclick="adminLogin()">Login</button>
   </div>
 
-  <div id="split-payment-fields" style="display:none;">
-    <div class="split-group">
-      <label>Cash:</label> <input type="number" id="split-cash" oninput="updateRemaining()" min="0">
+  <!-- Main App -->
+  <div id="main-app" style="display: none;">
+    <div class="container">
+      <div id="google_translate_element"></div>
+      <h1>🌍 StarSon POS Demo</h1>
+      <div class="product-grid" id="product-list"></div>
+
+      <div class="cart">
+        <h2>🛒 Cart Summary</h2>
+        <input type="text" id="client-name" placeholder="Enter customer name">
+        <label for="phone">Phone (SMS Receipt):</label>
+        <input type="tel" id="phone" placeholder="+254XXXXXXXXX" pattern="^\+254\d{9}$">
+        <label for="email">Email (PDF Receipt):</label>
+        <input type="email" id="email" placeholder="customer@example.com">
+        <label for="payment-method">Payment Method</label>
+        <select id="payment-method">
+          <option value="Cash">Cash</option>
+          <option value="M-Pesa">M-Pesa</option>
+          <option value="Card">Card</option>
+          <option value="mixed">Mixed</option>
+        </select>
+
+        <div id="split-section" style="display: none;">
+          <label>Cash Amount:</label>
+          <input type="number" id="split-cash" value="0" oninput="updateBalance()">
+          <label>M-Pesa Amount:</label>
+          <input type="number" id="split-mpesa" value="0" oninput="updateBalance()">
+          <label>Card Amount:</label>
+          <input type="number" id="split-card" value="0" oninput="updateBalance()">
+          <p>Remaining Balance: <span id="balance">0.00</span></p>
+        </div>
+
+        <ul id="cart-items" class="cart-items"></ul>
+        <div class="total">Total: KES <span id="total">0.00</span></div>
+        <button class="checkout-btn" onclick="sendReceipt()">📤 Send Receipt</button>
+        <button class="checkout-btn" onclick="downloadPDF()">📄 Download PDF</button>
+        <button class="checkout-btn" onclick="exportInventory()">⬇ Export Inventory</button>
+      </div>
     </div>
-    <div class="split-group">
-      <label>Mpesa:</label> <input type="number" id="split-mpesa" oninput="updateRemaining()" min="0">
-    </div>
-    <div class="split-group">
-      <label>Card:</label> <input type="number" id="split-card" oninput="updateRemaining()" min="0">
-    </div>
-    <p><strong>Remaining Balance:</strong> <span id="remaining-balance">0</span></p>
   </div>
 
-  <button onclick="checkout()">Checkout</button>
+<script>
+  const adminCredentials = { username: "admin", password: "StarSon2025" };
 
-  <div id="receipt-preview" style="display:none;">
-    <h3>Receipt</h3>
-    <div id="receipt-summary"></div>
-    <p><img id="receipt-qr-img" /></p>
-    <p id="tree-saving"></p>
-    <button onclick="downloadPDF()">Download PDF</button>
-  </div>
+  function adminLogin() {
+    const user = document.getElementById("admin-user").value.trim();
+    const pass = document.getElementById("admin-pass").value.trim();
+    const errorMsg = document.getElementById("login-error");
+    errorMsg.textContent = "";
+    if (!user || !pass) {
+      errorMsg.textContent = "⚠ Please enter both username and password.";
+      return;
+    }
+    if (user === adminCredentials.username && pass === adminCredentials.password) {
+      document.getElementById("admin-panel").style.display = "none";
+      document.getElementById("main-app").style.display = "block";
+    } else {
+      errorMsg.textContent = "❌ Invalid login. Please try again.";
+    }
+  }
 
-  <script>
-    let cart = [];
+  function googleTranslateElementInit() {
+    new google.translate.TranslateElement({ pageLanguage: 'en' }, 'google_translate_element');
+  }
+
+  function exportInventory() {
+    const data = ["Product,Qty,Price"];
+    products.forEach(p => data.push(`${p.name},10,${p.price}`));
+    const blob = new Blob([data.join("\n")], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "inventory.csv";
+    a.click();
+  }
+
+  const products = [
+    { id: 1, name: "Milk", price: 45.00, eco_score: 90 },
+    { id: 2, name: "Bread", price: 50.00, eco_score: 70 },
+    { id: 3, name: "Apple", price: 20.00, eco_score: 95 }
+  ];
+  let cart = [];
+
+  function renderProducts() {
+    const list = document.getElementById('product-list');
+    products.forEach(p => {
+      const div = document.createElement('div');
+      div.className = 'product';
+      div.innerHTML = `
+        <strong>${p.name}</strong><br>
+        <span>KES ${p.price}</span><br>
+        <span>🌱 Eco: ${p.eco_score}%</span><br>
+        <button onclick="addToCart(${p.id})">Add to Cart</button>
+      `;
+      list.appendChild(div);
+    });
+  }
+
+  function addToCart(id) {
+    const prod = products.find(p => p.id === id);
+    const item = cart.find(i => i.id === id);
+    if (item) {
+      item.qty++;
+    } else {
+      cart.push({ ...prod, qty: 1 });
+    }
+    updateCart();
+  }
+
+  function updateCart() {
+    const list = document.getElementById('cart-items');
+    const totalDisplay = document.getElementById('total');
+    list.innerHTML = '';
     let total = 0;
+    cart.forEach(i => {
+      const subtotal = i.price * i.qty;
+      const li = document.createElement('li');
+      li.textContent = `${i.name} x ${i.qty} = KES ${subtotal.toFixed(2)}`;
+      list.appendChild(li);
+      total += subtotal;
+    });
+    totalDisplay.textContent = total.toFixed(2);
+    updateBalance();
+  }
 
-    async function fetchProducts() {
-      const res = await fetch("/products");
-      const data = await res.json();
-      const list = document.getElementById("product-list");
-      list.innerHTML = "<h3>Products</h3>";
-      data.forEach(product => {
-        const item = document.createElement("div");
-        item.classList.add("flex");
-        item.innerHTML = `<span>${product.name} (KES ${product.price})</span>
-                          <button onclick="addToCart('${product.id}')">Add</button>`;
-        list.appendChild(item);
-      });
+  function updateBalance() {
+    const method = document.getElementById('payment-method').value;
+    if (method !== 'mixed') return;
+    const cash = parseFloat(document.getElementById('split-cash').value || 0);
+    const mpesa = parseFloat(document.getElementById('split-mpesa').value || 0);
+    const card = parseFloat(document.getElementById('split-card').value || 0);
+    const paid = cash + mpesa + card;
+    const total = cart.reduce((sum, i) => sum + i.price * i.qty, 0);
+    document.getElementById('balance').textContent = (total - paid).toFixed(2);
+  }
+
+  document.getElementById('payment-method').addEventListener('change', function(e) {
+    const splitSection = document.getElementById('split-section');
+    splitSection.style.display = e.target.value === 'mixed' ? 'block' : 'none';
+  });
+
+  async function sendReceipt() {
+    if (cart.length === 0) return alert("Cart is empty!");
+    const clientName = document.getElementById("client-name").value.trim();
+    const phone = document.getElementById("phone").value.trim();
+    const email = document.getElementById("email").value.trim();
+    const paymentMethod = document.getElementById("payment-method").value;
+
+    if (!clientName) return alert("Please enter the customer name.");
+
+    if (paymentMethod === "mixed") {
+      const balance = parseFloat(document.getElementById("balance").textContent);
+      if (balance !== 0) return alert("❌ Payment amounts do not match the total.");
     }
 
-    function addToCart(id) {
-      fetch("/products")
-        .then(res => res.json())
-        .then(products => {
-          const product = products.find(p => p.id === id);
-          const existing = cart.find(item => item.id === id);
-          if (existing) existing.qty++;
-          else cart.push({ ...product, qty: 1 });
-          updateCartDisplay();
-        });
-    }
+    // Simulated success for demo purposes
+    alert(`✅ Receipt processed for ${clientName}.\n🌳 You helped save 1 tree!`);
+  }
 
-    function updateCartDisplay() {
-      const cartDiv = document.getElementById("cart");
-      cartDiv.innerHTML = "<h3>Cart</h3>";
-      total = 0;
-      cart.forEach(item => {
-        const subtotal = item.qty * item.price;
-        total += subtotal;
-        const div = document.createElement("div");
-        div.innerHTML = `<span>${item.name} x${item.qty}</span>
-                         <span>KES ${subtotal}</span>`;
-        cartDiv.appendChild(div);
-      });
-      updateRemaining();
-    }
+  function downloadPDF() {
+    if (cart.length === 0) return alert("Cart is empty!");
+    const doc = new jspdf.jsPDF();
+    doc.text("StarSon POS Receipt", 10, 10);
+    cart.forEach((item, i) => {
+      doc.text(`${item.name} x ${item.qty} = KES ${(item.qty * item.price).toFixed(2)}`, 10, 20 + i * 10);
+    });
+    doc.save("receipt.pdf");
+  }
 
-    function toggleSplit() {
-      const method = document.getElementById("payment-method").value;
-      document.getElementById("split-payment-fields").style.display = method === "mixed" ? "block" : "none";
-      updateRemaining();
-    }
-
-    function updateRemaining() {
-      if (document.getElementById("payment-method").value !== "mixed") return;
-      const cash = parseFloat(document.getElementById("split-cash").value || 0);
-      const mpesa = parseFloat(document.getElementById("split-mpesa").value || 0);
-      const card = parseFloat(document.getElementById("split-card").value || 0);
-      const paid = cash + mpesa + card;
-      const remaining = (total - paid).toFixed(2);
-      document.getElementById("remaining-balance").textContent = remaining >= 0 ? remaining : "0";
-    }
-
-    function checkout() {
-      const method = document.getElementById("payment-method").value;
-      let paymentData = method;
-      if (method === "mixed") {
-        paymentData = {
-          method: "mixed",
-          cash: parseFloat(document.getElementById("split-cash").value || 0),
-          mpesa: parseFloat(document.getElementById("split-mpesa").value || 0),
-          card: parseFloat(document.getElementById("split-card").value || 0),
-        };
-      }
-
-      fetch("/generate_receipt", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ items: cart, paymentMethod: paymentData })
-      })
-      .then(res => res.json())
-      .then(data => {
-        const preview = document.getElementById("receipt-preview");
-        const summary = document.getElementById("receipt-summary");
-        preview.style.display = "block";
-        summary.innerHTML = `
-          <p><strong>Transaction ID:</strong> ${data.receipt_id}</p>
-          <p><strong>Payment:</strong> ${JSON.stringify(data.payment_method)}</p>
-          <ul>${data.items.map(i => `<li>${i.name} x${i.qty} - KES ${i.qty * i.price}</li>`).join('')}</ul>
-          <p><strong>Total:</strong> KES ${data.total}</p>`;
-        document.getElementById("receipt-qr-img").src = data.qr_img;
-        document.getElementById("tree-saving").textContent = `🎋 You saved ~1/8500 of a tree 🌳!`;
-      });
-    }
-
-    function downloadPDF() {
-      const { jsPDF } = window.jspdf;
-      const doc = new jsPDF();
-      doc.text(document.getElementById("receipt-summary").innerText, 10, 10);
-      doc.save("receipt.pdf");
-    }
-
-    fetchProducts();
-  </script>
-
+  renderProducts();
+</script>
 </body>
 </html>
-
