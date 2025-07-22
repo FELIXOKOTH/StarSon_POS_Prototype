@@ -16,6 +16,22 @@
     "headers": {
       "Authorization": "Bearer xyz"
     },
+    {
+  "greenmart_ltd": {
+    "sms_method": "branded",
+    "provider": "safaricom",
+    "consumer_key": "YOUR_SAFARICOM_KEY",
+    "consumer_secret": "YOUR_SAFARICOM_SECRET",
+    "sender_id": "GREENMART",
+    "sms_endpoint": "https://your-safaricom-sms-api.com/send"
+  },
+  "baraka_pharmacy": {
+    "sms_method": "branded",
+    "provider": "airtel",
+    "api_key": "YOUR_AIRTEL_API_KEY",
+    "sender_id": "BARAKA",
+    "sms_endpoint": "https://api.airtel.africa/sms/send"
+  },
     "payload_template": {
       "to": "{number}",
       "message": "{message}"
