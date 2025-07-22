@@ -1,0 +1,24 @@
+{
+  "client_001": {
+    "mode": "android",
+    "device_url": "http://192.168.1.2:8080/send"
+  },
+  "client_002": {
+    "mode": "branded",
+    "api_key": "abcdef",
+    "sender_id": "STARPOS",
+    "provider": "safaricom"
+  },
+  "client_003": {
+    "mode": "custom",
+    "url": "https://clientapi.com/send",
+    "method": "POST",
+    "headers": {
+      "Authorization": "Bearer xyz"
+    },
+    "payload_template": {
+      "to": "{number}",
+      "message": "{message}"
+    }
+  }
+}
