@@ -1,6 +1,3 @@
-
-# sms_gateway/branded_gateway.py
-
 import requests
 from requests.auth import HTTPBasicAuth
 
