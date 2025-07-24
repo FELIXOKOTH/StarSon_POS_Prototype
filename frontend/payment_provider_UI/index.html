@@ -1,0 +1,133 @@
+<h3>Select Payment Provider</h3>
+<select id="preferred_provider">
+  <option value="mpesa">M-Pesa</option>
+  <option value="airtel">Airtel Money</option>
+</select>
+
+<h3>Select Payment Method(s)</h3>
+<label><input type="checkbox" name="method" value="send_money"> Send Money</label>
+<label><input type="checkbox" name="method" value="pochi"> Pochi la Biashara</label>
+<label><input type="checkbox" name="method" value="till"> Till Number</label>
+<label><input type="checkbox" name="method" value="paybill"> Paybill</label>
+
+<div id="payment-details">
+  <!-- Dynamic fields will appear here -->
+</div>
+
+<button id="savePaymentBtn">Send / Save</button>
+
+<script>
+const providerSelect = document.getElementById('preferred_provider');
+const paymentDetails = document.getElementById('payment-details');
+const savePaymentBtn = document.getElementById('savePaymentBtn');
+
+function renderMethodFields() {
+  const selectedMethods = Array.from(document.querySelectorAll('input[name="method"]:checked')).map(cb => cb.value);
+  let html = '';
+
+  selectedMethods.forEach(method => {
+    if (method === 'paybill') {
+      html += `
+        <div class="method-block" data-method="paybill">
+          <h4>Paybill</h4>
+          <input type="text" id="paybill_business" placeholder="Business Number">
+          <input type="text" id="paybill_account" placeholder="Account Number">
+        </div>`;
+    } else if (method === 'till') {
+      html += `
+        <div class="method-block" data-method="till">
+          <h4>Till</h4>
+          <input type="text" id="till_number" placeholder="Till Number">
+        </div>`;
+    } else if (method === 'send_money') {
+      html += `
+        <div class="method-block" data-method="send_money">
+          <h4>Send Money</h4>
+          <input type="text" id="send_money_number" placeholder="Registered Number">
+        </div>`;
+    } else if (method === 'pochi') {
+      html += `
+        <div class="method-block" data-method="pochi">
+          <h4>Pochi la Biashara</h4>
+          <input type="text" id="pochi_number" placeholder="Registered Number">
+        </div>`;
+    }
+  });
+
+  paymentDetails.innerHTML = html;
+}
+
+document.querySelectorAll('input[name="method"]').forEach(cb => {
+  cb.addEventListener('change', renderMethodFields);
+});
+
+// Save data
+savePaymentBtn.addEventListener('click', function () {
+  const provider = providerSelect.value;
+  const selectedMethods = Array.from(document.querySelectorAll('input[name="method"]:checked')).map(cb => cb.value);
+
+  let paymentConfig = {
+    provider,
+    methods: {}
+  };
+
+  selectedMethods.forEach(method => {
+    if (method === 'paybill') {
+      paymentConfig.methods.paybill = {
+        business_number: document.getElementById('paybill_business').value,
+        account_number: document.getElementById('paybill_account').value
+      };
+    } else if (method === 'till') {
+      paymentConfig.methods.till = {
+        till_number: document.getElementById('till_number').value
+      };
+    } else if (method === 'send_money') {
+      paymentConfig.methods.send_money = {
+        number: document.getElementById('send_money_number').value
+      };
+    } else if (method === 'pochi') {
+      paymentConfig.methods.pochi = {
+        number: document.getElementById('pochi_number').value
+      };
+    }
+  });
+
+  // Save to localStorage
+  localStorage.setItem('client_payment_preferences', JSON.stringify(paymentConfig));
+
+  alert('Payment methods saved successfully!');
+  console.log('Saved:', paymentConfig);
+});
+
+// Preload if already saved
+window.onload = function () {
+  const saved = localStorage.getItem('client_payment_preferences');
+  if (saved) {
+    const config = JSON.parse(saved);
+    providerSelect.value = config.provider;
+
+    Object.keys(config.methods).forEach(method => {
+      const checkbox = document.querySelector(`input[name="method"][value="${method}"]`);
+      if (checkbox) checkbox.checked = true;
+    });
+
+    renderMethodFields();
+
+    setTimeout(() => {
+      if (config.methods.paybill) {
+        document.getElementById('paybill_business').value = config.methods.paybill.business_number;
+        document.getElementById('paybill_account').value = config.methods.paybill.account_number;
+      }
+      if (config.methods.till) {
+        document.getElementById('till_number').value = config.methods.till.till_number;
+      }
+      if (config.methods.send_money) {
+        document.getElementById('send_money_number').value = config.methods.send_money.number;
+      }
+      if (config.methods.pochi) {
+        document.getElementById('pochi_number').value = config.methods.pochi.number;
+      }
+    }, 100);
+  }
+};
+</script>
