@@ -1,0 +1,76 @@
+<h2>Payment Section</h2>
+
+<div id="payment-options">
+  <!-- Auto-generated based on config -->
+</div>
+
+<label for="customer_number">Customer Phone Number (optional):</label><br>
+<input type="text" id="customer_number" placeholder="e.g., 07XXXXXXXX"><br><br>
+
+<button onclick="triggerPayment()">Prompt Payment</button>
+
+<script>
+function loadPaymentConfig() {
+  const config = JSON.parse(localStorage.getItem('payment_config'));
+  if (!config) {
+    document.getElementById('payment-options').innerHTML = '<p>No payment method set. Please complete onboarding.</p>';
+    return;
+  }
+
+  let html = `<h4>Preferred Provider: ${config.provider.toUpperCase()}</h4>`;
+  for (let method in config.methods) {
+    if (method === 'paybill') {
+      html += `
+        <div>
+          <strong>Paybill:</strong><br>
+          Business Number: ${config.methods[method].business_number}<br>
+          Account Number: ${config.methods[method].account_number}<br><br>
+        </div>
+      `;
+    } else if (method === 'till') {
+      html += `
+        <div>
+          <strong>Till Number:</strong> ${config.methods[method].till_number}<br><br>
+        </div>
+      `;
+    } else if (method === 'send_money' || method === 'pochi') {
+      const label = method === 'send_money' ? 'Send Money' : 'Pochi la Biashara';
+      html += `
+        <div>
+          <strong>${label} To:</strong> ${config.methods[method].receiver_number}<br><br>
+        </div>
+      `;
+    }
+  }
+
+  document.getElementById('payment-options').innerHTML = html;
+}
+
+function triggerPayment() {
+  const customerNumber = document.getElementById('customer_number').value;
+  const config = JSON.parse(localStorage.getItem('payment_config'));
+
+  if (!config) {
+    alert('No payment configuration found!');
+    return;
+  }
+
+  const triggerDetails = {
+    provider: config.provider,
+    methods: config.methods,
+    customer_number: customerNumber || 'Using registered receipt number',
+    time: new Date().toLocaleString()
+  };
+
+  console.log('Triggering payment with the following config:', triggerDetails);
+
+  alert('Payment prompt initiated for:\n' +
+    `Provider: ${triggerDetails.provider}\n` +
+    `Customer: ${triggerDetails.customer_number}\n` +
+    `Time: ${triggerDetails.time}\n\n` +
+    'Check developer console for method-specific instructions.');
+}
+
+// Load config on page load
+window.addEventListener('load', loadPaymentConfig);
+</script>
