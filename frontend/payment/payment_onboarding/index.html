@@ -1,0 +1,86 @@
+<h3>Select Preferred Mobile Money Provider(s)</h3>
+<select name="preferred_provider" id="preferred_provider">
+  <option value="mpesa">M-Pesa</option>
+  <option value="airtel">Airtel Money</option>
+</select>
+
+<h3>Select Payment Method(s)</h3>
+<select name="method" id="method" multiple size="4">
+  <option value="send_money">Send Money</option>
+  <option value="pochi">Pochi la Biashara</option>
+  <option value="till">Till Number</option>
+  <option value="paybill">Paybill</option>
+</select>
+
+<div id="payment-details">
+  <!-- Dynamic fields appear here -->
+</div>
+
+<button onclick="savePaymentConfig()">Save Payment Configuration</button>
+
+<script>
+const methodSelect = document.getElementById('method');
+const paymentDetails = document.getElementById('payment-details');
+
+function updatePaymentFields() {
+  const selectedMethods = Array.from(methodSelect.selectedOptions).map(opt => opt.value);
+  let html = '';
+
+  selectedMethods.forEach(method => {
+    if (method === 'paybill') {
+      html += `
+        <h4>Paybill</h4>
+        <input type="text" name="business_number_${method}" placeholder="Enter Business Number"><br>
+        <input type="text" name="account_number_${method}" placeholder="Enter Account Number"><br><br>
+      `;
+    } else if (method === 'till') {
+      html += `
+        <h4>Till Number</h4>
+        <input type="text" name="till_number_${method}" placeholder="Enter Till Number"><br><br>
+      `;
+    } else if (method === 'send_money' || method === 'pochi') {
+      const label = method === 'send_money' ? 'Send Money' : 'Pochi la Biashara';
+      html += `
+        <h4>${label}</h4>
+        <input type="text" name="receiver_number_${method}" placeholder="Enter Registered Number"><br><br>
+      `;
+    }
+  });
+
+  paymentDetails.innerHTML = html;
+}
+
+methodSelect.addEventListener('change', updatePaymentFields);
+window.addEventListener('load', updatePaymentFields);
+
+// Save Configuration to Local Storage
+function savePaymentConfig() {
+  const provider = document.getElementById('preferred_provider').value;
+  const methods = Array.from(methodSelect.selectedOptions).map(opt => opt.value);
+
+  const config = {
+    provider: provider,
+    methods: {}
+  };
+
+  methods.forEach(method => {
+    if (method === 'paybill') {
+      config.methods[method] = {
+        business_number: document.querySelector(`[name="business_number_${method}"]`).value,
+        account_number: document.querySelector(`[name="account_number_${method}"]`).value
+      };
+    } else if (method === 'till') {
+      config.methods[method] = {
+        till_number: document.querySelector(`[name="till_number_${method}"]`).value
+      };
+    } else {
+      config.methods[method] = {
+        receiver_number: document.querySelector(`[name="receiver_number_${method}"]`).value
+      };
+    }
+  });
+
+  localStorage.setItem('payment_config', JSON.stringify(config));
+  alert('Payment configuration saved successfully!');
+}
+</script>
