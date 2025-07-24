@@ -1,0 +1,118 @@
+<!-- 📱 StarSon POS | Auto STK Push, Airtel Money, and Card Payments -->
+<div id="payment-section" style="display:none;">
+  <h2>Processing Payment...</h2>
+  <form id="paymentForm">
+    <input type="hidden" id="phone" name="phone" />
+    <input type="hidden" id="amount" name="amount" />
+    <input type="hidden" id="method" name="method" value="mpesa" />
+    <div id="spinner" style="display:none;">Loading...</div>
+    <button type="submit" style="display:none;">Send Payment</button>
+  </form>
+</div>
+
+<!-- 💳 Payment Confirmation Modal -->
+<div id="confirmationModal" style="display:none; position:fixed; top:20%; left:50%; transform:translateX(-50%); background:#fff; padding:20px; box-shadow:0 0 10px rgba(0,0,0,0.2); border-radius:10px; z-index:1000;">
+  <h3>Confirm Payment</h3>
+  <p id="confirmationText"></p>
+  <button onclick="confirmPayment()">Confirm</button>
+  <button onclick="closeModal()">Cancel</button>
+</div>
+
+<script>
+let confirmed = false;
+let pollingInterval;
+
+function showModal(message) {
+  document.getElementById("confirmationText").innerText = message;
+  document.getElementById("confirmationModal").style.display = "block";
+}
+
+function closeModal() {
+  document.getElementById("confirmationModal").style.display = "none";
+  confirmed = false;
+}
+
+function confirmPayment() {
+  confirmed = true;
+  closeModal();
+  document.getElementById("paymentForm").dispatchEvent(new Event('submit'));
+}
+
+function triggerSTKPayment(customerPhone, totalAmount) {
+  preparePayment(customerPhone, totalAmount, 'mpesa');
+}
+
+function triggerAirtelPayment(customerPhone, totalAmount) {
+  preparePayment(customerPhone, totalAmount, 'airtel');
+}
+
+function triggerCardPayment(customerPhone, totalAmount) {
+  preparePayment(customerPhone, totalAmount, 'card');
+}
+
+function preparePayment(phone, amount, method) {
+  document.getElementById("phone").value = phone;
+  document.getElementById("amount").value = amount;
+  document.getElementById("method").value = method;
+  showModal(`Proceed with ${method.toUpperCase()} payment of KES ${amount}?`);
+}
+
+async function sendReceipt(phone, amount, method) {
+  await fetch('/send_receipt', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ phone, amount, method })
+  });
+}
+
+function startPolling(txnId) {
+  pollingInterval = setInterval(async () => {
+    const statusResponse = await fetch(`/check_payment_status?txn_id=${txnId}`);
+    const status = await statusResponse.json();
+    if (status.success) {
+      clearInterval(pollingInterval);
+      alert('Payment confirmed. Sending receipt...');
+      await sendReceipt(document.getElementById("phone").value, document.getElementById("amount").value, document.getElementById("method").value);
+      alert('Receipt has been sent.');
+    }
+  }, 3000); // check every 3 seconds
+}
+
+document.getElementById("paymentForm").addEventListener("submit", async function(e) {
+  e.preventDefault();
+  if (!confirmed) return;
+
+  const phone = document.getElementById("phone").value;
+  const amount = document.getElementById("amount").value;
+  const method = document.getElementById("method").value;
+  const spinner = document.getElementById("spinner");
+
+  if (!phone || !amount || !method) {
+    alert("Missing phone, amount, or method.");
+    return;
+  }
+
+  try {
+    document.getElementById("payment-section").style.display = "block";
+    spinner.style.display = "block";
+
+    const response = await fetch('/initiate_payment', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone, amount, method, account_ref: 'StarSonPOS' })
+    });
+
+    const result = await response.json();
+    spinner.style.display = "none";
+    alert(result.ResponseDescription || result.message || 'Payment request sent.');
+
+    if (result.txn_id) {
+      startPolling(result.txn_id);
+    }
+
+  } catch (error) {
+    spinner.style.display = "none";
+    alert('Payment failed: ' + error.message);
+  }
+});
+</script>
