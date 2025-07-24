@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>StarSon POS - Demo</title>
+  <link rel="stylesheet" href="styles.css" />
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #f9f9f9;
+    }
+    header {
+      background-color: #00695c;
+      color: white;
+      padding: 1em;
+      text-align: center;
+    }
+    .content {
+      padding: 2em;
+      max-width: 800px;
+      margin: auto;
+      background: white;
+      box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
+      border-radius: 10px;
+    }
+    .success-msg {
+      color: green;
+      font-weight: bold;
+    }
+    #google_translate_element {
+      position: fixed;
+      top: 10px;
+      right: 10px;
+      z-index: 1000;
+    }
+  </style>
+  <script>
+    function checkConfiguration() {
+      const config = localStorage.getItem('smsGatewayConfig');
+      if (config) {
+        const parsedConfig = JSON.parse(config);
+        document.getElementById('setup-message').innerHTML = `✅ SMS Gateway Configured for: <strong>${parsedConfig.businessName}</strong>`;
+        document.getElementById('setup-message').classList.add('success-msg');
+      } else {
+        window.location.href = 'sms_gateway.html';
+      }
+    }
+
+    function googleTranslateElementInit() {
+      new google.translate.TranslateElement({
+        pageLanguage: 'en',
+        includedLanguages: 'en,sw,fr,es,de,pt,ar,zh,hi,am,om,so,ig,yo,ha,rw,ny,lg,ti,zu,xh,st,nr',
+        layout: google.translate.TranslateElement.InlineLayout.SIMPLE
+      }, 'google_translate_element');
+    }
+  </script>
+</head>
+<body onload="checkConfiguration()">
+  <div id="google_translate_element"></div>
+  <header>
+    <h1>StarSon POS - Eco & Smart Sales System</h1>
+  </header>
+
+  <div class="content">
+    <p id="setup-message">🔄 Checking SMS Gateway configuration...</p>
+    <p>Welcome to the StarSon POS demo. This version showcases multilingual support and SMS configuration features.</p>
+    <ul>
+      <li>Eco-Receipt preview</li>
+      <li>Tree-saved tracker</li>
+      <li>Split payment mode support</li>
+      <li>Auto-SMS/email receipts</li>
+    </ul>
+    <p><strong>Note:</strong> POS demo features will fully activate after setting up your SMS Gateway preferences.</p>
+  </div>
+
+  <script src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
+</body>
+</html>
