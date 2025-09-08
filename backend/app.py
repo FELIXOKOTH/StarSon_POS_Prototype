@@ -17,6 +17,7 @@ app = Flask(__name__)
 app.config['MAIL_SERVER'] = os.getenv('MAIL_SERVER', 'smtp.zoho.com')
 app.config['MAIL_PORT'] = int(os.getenv('MAIL_PORT', 587))
 app.config['MAIL_USE_TLS'] = True
+app.config['MAIL_USE_SSL'] = False
 app.config['MAIL_USERNAME'] = os.getenv('MAIL_USERNAME', 'info@brightarm.co.ke')
 app.config['MAIL_PASSWORD'] = os.getenv('MAIL_PASSWORD')
 app.config['MAIL_DEFAULT_SENDER'] = app.config['MAIL_USERNAME']
@@ -69,20 +70,22 @@ def generate_receipt():
 
         total = sum(item['price'] * item['qty'] for item in items)
         receipt_id = transaction_id_counter
+        customer_number = f"Customer-{receipt_id}"
         transaction_id_counter += 1
 
         # Tree-saving stats
         stats = get_tree_saving_stats(items)
 
-        # Generate PDF
-        pdf_buffer = generate_pdf_receipt(receipt_id, items, total, stats)
+        # Generate PDF (pass customer_number)
+        pdf_buffer = generate_pdf_receipt(receipt_id, items, total, stats, customer_number=customer_number)
 
         # Save transaction
         transactions.append({
             'id': receipt_id,
             'items': items,
             'total': total,
-            'method': payment_method
+            'method': payment_method,
+            'customer_number': customer_number
         })
 
         # QR code
@@ -91,13 +94,13 @@ def generate_receipt():
         # Send email
         if email:
             msg = Message("Your StarSon Receipt", recipients=[email])
-            msg.body = f"Thank you for shopping. Total: {total}. Tree saving: {stats}"
+            msg.body = f"Thank you for shopping, {customer_number}. Total: {total}. Tree saving: {stats}"
             msg.attach(f"receipt_{receipt_id}.pdf", "application/pdf", pdf_buffer.getvalue())
             mail.send(msg)
 
         # Send SMS
         if phone:
-            sms_msg = f"StarSon Receipt #{receipt_id}. Total: {total}. Tree saving: {stats}"
+            sms_msg = f"StarSon Receipt #{receipt_id} for {customer_number}. Total: {total}. Tree saving: {stats}"
             twilio_client.messages.create(
                 body=sms_msg,
                 from_=TWILIO_PHONE_NUMBER,
@@ -108,7 +111,8 @@ def generate_receipt():
             'receipt_id': receipt_id,
             'total': total,
             'tree_stats': stats,
-            'qr_img': qr_img_url
+            'qr_img': qr_img_url,
+            'customer_number': customer_number
         })
 
     except Exception as e:
@@ -133,16 +137,12 @@ def download_pdf(receipt_id):
         return 'Not found', 404
 
     stats = get_tree_saving_stats(transaction['items'])
-    pdf_buffer = generate_pdf_receipt(receipt_id, transaction['items'], transaction['total'], stats)
+    customer_number = transaction.get('customer_number', f"Customer-{receipt_id}")
+    pdf_buffer = generate_pdf_receipt(receipt_id, transaction['items'], transaction['total'], stats, customer_number=customer_number)
     return send_file(io.BytesIO(pdf_buffer.getvalue()),
                      download_name=f"receipt_{receipt_id}.pdf",
                      as_attachment=True,
                      mimetype='application/pdf')
 
-if __name__ == '__main__':
-    app.run(debug=True)
-
-
-# === Run App ===
 if __name__ == '__main__':
     app.run(debug=True)
