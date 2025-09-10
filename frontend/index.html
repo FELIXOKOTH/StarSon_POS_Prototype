@@ -108,7 +108,7 @@
       <div class="product-grid" id="product-list"></div>
       <div class="cart">
         <h2>🛒 Cart Summary</h2>
-        <input type="text" id="client-name" placeholder="Enter customer name">
+        <!-- Customer name input removed for automation -->
         <label for="phone">Phone (SMS Receipt):</label>
         <input type="text" id="phone" placeholder="+2547XXXXXXXX">
         <label for="email">Email (PDF Receipt):</label>
@@ -131,6 +131,7 @@
         </div>
         <ul id="cart-items" class="cart-items"></ul>
         <div class="total">Total: KES <span id="total">0.00</span></div>
+        <div id="customer-number-display" style="font-weight:bold;color:#2d6a4f;"></div>
         <button class="checkout-btn" onclick="sendReceipt()">📤 Send Receipt</button>
         <button class="checkout-btn" onclick="exportInventory()">⬇ Export Inventory</button>
       </div>
@@ -232,22 +233,23 @@
   });
   async function sendReceipt() {
     if (cart.length === 0) return alert("Cart is empty!");
-    const clientName = document.getElementById("client-name").value.trim();
+    // Removed clientName input for automation
     const phone = document.getElementById("phone").value.trim();
     const email = document.getElementById("email").value.trim();
     const paymentMethod = document.getElementById("payment-method").value;
-    if (!clientName) return alert("Please enter the customer name.");
+    // No clientName check
     const response = await fetch("/generate_receipt", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ clientName, phone, email, paymentMethod, items: cart })
+      body: JSON.stringify({ phone, email, paymentMethod, items: cart })
     });
     const data = await response.json();
-    if (data.success) {
-      alert("✅ Receipt sent via Email and SMS.");
+    if (data.receipt_id) {
+      document.getElementById("customer-number-display").textContent = `Customer Number: ${data.customer_number}`;
+      alert("✅ Receipt sent via Email and SMS.\n" + `Customer Number: ${data.customer_number}`);
       if (data.pdf_url) window.open(data.pdf_url, '_blank');
     } else {
-      alert("❌ Failed to send receipt: " + (data.message || "Unknown error"));
+      alert("❌ Failed to send receipt: " + (data.message || data.error || "Unknown error"));
     }
   }
   renderProducts();
